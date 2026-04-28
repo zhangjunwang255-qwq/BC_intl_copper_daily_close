@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>沪铜与国际铜比价监测</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body class="bg-slate-900 text-white font-inter min-h-screen">
+
+  <!-- Header -->
+  <header class="bg-slate-800 border-b border-slate-700 sticky top-0 z-50">
+    <div class="max-w-4xl mx-auto px-4 py-4 flex items-center justify-between">
+      <div>
+        <h1 class="text-xl font-bold text-amber-400 flex items-center gap-2">
+          <i class="fa-solid fa-chart-line"></i>
+          沪铜 &amp; 国际铜比价监测
+        </h1>
+        <p class="text-slate-400 text-sm mt-1" id="header-subtitle">实时数据 · 每10分钟自动刷新</p>
+      </div>
+      <div class="flex items-center gap-3">
+        <!-- Date picker -->
+        <div class="flex items-center gap-2 bg-slate-700 rounded-lg px-3 py-2">
+          <i class="fa-regular fa-calendar text-slate-400 text-sm"></i>
+          <input
+            type="date"
+            id="datePicker"
+            class="bg-transparent text-white text-sm focus:outline-none cursor-pointer border-none"
+            min="2026-03-01"
+          />
+        </div>
+        <button id="switchBtn" class="bg-amber-500 hover:bg-amber-400 text-slate-900 font-semibold text-sm px-4 py-2 rounded-lg transition-colors">
+          <i class="fa-solid fa-repeat mr-1"></i>切至实时
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Mode banner -->
+  <div id="modeBanner" class="bg-slate-800/60 border-b border-slate-700 text-center py-2 text-sm">
+    <span id="modeText" class="text-amber-400 font-medium">
+      <i class="fa-solid fa-bolt mr-1"></i>实时模式
+    </span>
+  </div>
+
+  <!-- Loading -->
+  <div id="loadingOverlay" class="hidden fixed inset-0 bg-slate-900/80 flex items-center justify-center z-50">
+    <div class="text-center">
+      <i class="fa-solid fa-circle-notch fa-spin text-4xl text-amber-400 mb-4"></i>
+      <p class="text-slate-300">加载数据中...</p>
+    </div>
+  </div>
+
+  <!-- Error toast -->
+  <div id="errorToast" class="hidden fixed top-20 left-1/2 -translate-x-1/2 bg-red-500 text-white px-6 py-3 rounded-xl shadow-lg z-50 text-sm font-medium">
+    <i class="fa-solid fa-triangle-exclamation mr-2"></i><span id="errorMsg"></span>
+  </div>
+
+  <!-- Main content -->
+  <main class="max-w-4xl mx-auto px-4 py-6 space-y-4">
+
+    <!-- Last update time -->
+    <div class="text-center text-slate-500 text-xs" id="lastUpdate">等待数据...</div>
+
+    <!-- Row 1: Main contract prices -->
+    <div id="row1" class="grid grid-cols-2 gap-4">
+      <div class="card">
+        <div class="card-label">
+          <i class="fa-solid fa-cube text-blue-400"></i>
+          <span id="cuMainLabel">沪铜 CU2606</span>
+        </div>
+        <div class="card-price" id="cuMainPrice">--</div>
+        <div class="card-sub" id="cuMainSub">--</div>
+      </div>
+      <div class="card">
+        <div class="card-label">
+          <i class="fa-solid fa-globe text-green-400"></i>
+          <span id="bcMainLabel">国际铜 BC2606</span>
+        </div>
+        <div class="card-price" id="bcMainPrice">--</div>
+        <div class="card-sub" id="bcMainSub">--</div>
+      </div>
+    </div>
+
+    <!-- Row 2: Ratio -->
+    <div class="card highlight-card">
+      <div class="card-label">
+        <i class="fa-solid fa-divide text-amber-400"></i>
+        <span>比值</span>
+      </div>
+      <div class="card-price text-amber-400" id="ratioPrice">--</div>
+      <div class="card-sub" id="ratioSub">--</div>
+    </div>
+
+    <!-- Row 3: Spread -->
+    <div class="card highlight-card">
+      <div class="card-label">
+        <i class="fa-solid fa-arrows-left-right text-purple-400"></i>
+        <span>价差 (CU/1.13 - BC)</span>
+      </div>
+      <div class="card-price" id="spreadPrice">--</div>
+      <div class="card-sub" id="spreadSub">--</div>
+    </div>
+
+    <!-- Row 4: CU next month -->
+    <div class="card">
+      <div class="card-label">
+        <i class="fa-solid fa-cube text-blue-300"></i>
+        <span id="cuNextLabel">沪铜 CU2607</span>
+      </div>
+      <div class="card-price" id="cuNextPrice">--</div>
+      <div class="card-sub" id="cuNextSub">--</div>
+    </div>
+
+    <!-- Row 5: BC next month -->
+    <div class="card">
+      <div class="card-label">
+        <i class="fa-solid fa-globe text-green-300"></i>
+        <span id="bcNextLabel">国际铜 BC2607</span>
+      </div>
+      <div class="card-price" id="bcNextPrice">--</div>
+      <div class="card-sub" id="bcNextSub">--</div>
+    </div>
+
+    <!-- Footer note -->
+    <div class="text-center text-slate-600 text-xs pt-4 pb-8">
+      数据来源：天勤量化 (TqSdk) · 上海期货交易所 (SHFE) &amp; 上海国际能源交易中心 (INE)
+    </div>
+
+  </main>
+
+  <script src="app.js"></script>
+</body>
+</html>
