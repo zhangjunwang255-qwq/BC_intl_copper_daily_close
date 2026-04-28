@@ -38,17 +38,18 @@ def fetch_and_save_prices():
 
 
 def start_scheduler():
-    """启动定时任务"""
-    # 每10分钟执行一次
+    """启动定时任务（首次立即执行，之后每10分钟）"""
+    from datetime import datetime
     scheduler.add_job(
         fetch_and_save_prices,
         trigger=IntervalTrigger(minutes=10),
         id="fetch_prices",
         name="获取价格数据",
-        replace_existing=True
+        replace_existing=True,
+        next_run_time=datetime.now()  # 立即执行首次
     )
     scheduler.start()
-    logger.info("定时任务已启动，每10分钟执行一次")
+    logger.info("定时任务已启动，首次执行中，之后每10分钟执行")
 
 
 def stop_scheduler():

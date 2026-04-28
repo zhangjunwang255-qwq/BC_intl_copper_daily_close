@@ -1,14 +1,15 @@
 """
 铜差比价后端API - 主入口
 """
-import os
+import logging
 from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.api import latest, history, backfill
-from app.db.database import engine, Base
+from app.db.database import engine, Base, SessionLocal
 from app.services.scheduler import start_scheduler, stop_scheduler
+from app.services.backfill import auto_backfill_on_startup
 
 
 @asynccontextmanager
@@ -16,8 +17,14 @@ async def lifespan(app: FastAPI):
     """应用生命周期管理"""
     # 启动时创建数据库表
     Base.metadata.create_all(bind=engine)
-    # 启动定时任务
+    # 启动定时任务（实时数据每10分钟采集）
     start_scheduler()
+    # 启动时自动回填历史数据（2026-03-01 至今）
+    db = SessionLocal()
+    try:
+        auto_backfill_on_startup(db)
+    finally:
+        db.close()
     yield
     # 关闭时停止定时任务
     stop_scheduler()
