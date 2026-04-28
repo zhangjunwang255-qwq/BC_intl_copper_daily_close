@@ -1,0 +1,12 @@
+{
+  "$schema": "https://railway.app/railway.json",
+  "build": {
+    "builder": "python",
+    "pythonPackager": "pip"
+  },
+  "deploy": {
+    "numReplicas": 1,
+    "restartPolicyType": "on_failure",
+    "restartPolicyMaxRetries": 5
+  }
+}
