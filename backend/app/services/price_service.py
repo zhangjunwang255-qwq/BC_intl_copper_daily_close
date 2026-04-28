@@ -81,7 +81,8 @@ def fetch_current_prices() -> Dict[str, float]:
     }
     
     try:
-        api = TqApi(user=TQ_USER, password=TQ_PASSWORD)
+        auth = (TQ_USER, TQ_PASSWORD) if TQ_USER else None
+        api = TqApi(auth=auth)
         
         contracts = [cu_main, cu_next, bc_main, bc_next]
         for contract in contracts:
