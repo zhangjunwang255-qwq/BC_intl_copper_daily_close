@@ -3,7 +3,6 @@
   "build": {
     "builder": "nixpacks",
     "nixpacks": {
-      "aptPackages": [],
       "buildCommand": "echo 'static site'",
       "startCommand": "node server.js"
     }
