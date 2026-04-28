@@ -62,7 +62,15 @@ def get_contract_price(api: TqApi, contract_code: str) -> Optional[float]:
     """获取合约最新价格"""
     try:
         quote = api.get_quote(contract_code)
-        return quote.last_price
+        # 关键：必须等待数据到达，否则 last_price 为 None
+        api.wait_update()
+        
+        price = quote.last_price
+        if price is None or (isinstance(price, float) and price != price):  # NaN check
+            # 尝试备用字段
+            price = getattr(quote, 'close', None) or getattr(quote, 'pre_close', None)
+        
+        return float(price) if price is not None else None
     except Exception as e:
         logger.warning(f"获取 {contract_code} 价格失败: {e}")
         return None
