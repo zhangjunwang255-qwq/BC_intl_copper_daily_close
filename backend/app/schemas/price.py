@@ -34,24 +34,24 @@ class LatestPriceResponse(BaseModel):
 class LatestDataResponse(BaseModel):
     """当前最新数据响应"""
     date: str
-    cu_current: float
-    bc_current: float
-    ratio: float
-    spread: float
+    cu_current: Optional[float] = None
+    bc_current: Optional[float] = None
+    ratio: Optional[float] = None
+    spread: Optional[float] = None
     cu_next: Optional[float] = None
     bc_next: Optional[float] = None
     cu_diff: Optional[float] = None
     bc_diff: Optional[float] = None
-    update_time: datetime
+    update_time: Optional[datetime] = None
 
 
 class HistoryDataResponse(BaseModel):
     """历史数据响应"""
     date: str
-    cu_main: float
-    bc_main: float
-    ratio: float
-    spread: float
+    cu_main: Optional[float] = None
+    bc_main: Optional[float] = None
+    ratio: Optional[float] = None
+    spread: Optional[float] = None
     cu_next: Optional[float] = None
     bc_next: Optional[float] = None
     cu_diff: Optional[float] = None
