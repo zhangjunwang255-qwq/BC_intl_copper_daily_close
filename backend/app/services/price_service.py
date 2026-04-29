@@ -89,18 +89,43 @@ def fetch_current_prices() -> Dict[str, float]:
             api = TqApi()
         
         contracts = [cu_main, cu_next, bc_main, bc_next]
-        quotes = {c: api.get_quote(c) for c in contracts}
+        quotes = {}
         
-        # 关键：先获取所有 quote，再统一 wait_update，等数据到达
-        api.wait_update()
+        # 注册订阅，捕获不存在合约
+        for c in contracts:
+            try:
+                quotes[c] = api.get_quote(c)
+            except Exception as e:
+                logger.warning(f"{c} 不可用: {e}")
+        
+        # 等待数据到达，带超时
+        import time
+        deadline = time.time() + 30
+        while time.time() < deadline:
+            try:
+                api.wait_update(deadline=deadline)
+            except Exception as e:
+                logger.warning(f"wait_update 异常: {e}")
+                break
+            
+            all_ready = True
+            for c, q in quotes.items():
+                if not api.is_quote_ready(q):
+                    all_ready = False
+                    break
+            if all_ready:
+                break
         
         for contract, quote in quotes.items():
-            price = quote.last_price
-            if price is not None and not (isinstance(price, float) and price != price):
-                result["prices"][contract] = float(price)
-                logger.info(f"{contract} = {price}")
-            else:
-                logger.warning(f"{contract} 数据未到: last_price={price}")
+            try:
+                price = quote.last_price
+                if price is not None and not (isinstance(price, float) and price != price):
+                    result["prices"][contract] = float(price)
+                    logger.info(f"{contract} = {price}")
+                else:
+                    logger.warning(f"{contract} 数据未到: last_price={price}")
+            except Exception as e:
+                logger.warning(f"读取 {contract} 价格失败: {e}")
         
         api.close()
     except Exception as e:

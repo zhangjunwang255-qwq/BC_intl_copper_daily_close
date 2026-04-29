@@ -69,24 +69,40 @@ def run_backfill_task(db: Session):
 
     try:
         # ===== 第4步：批量注册所有合约的K线订阅 =====
-        logger.info("📡 批量注册合约订阅...")
+        logger.info(f"📡 批量注册合约订阅 ({len(contract_list)} 个)...")
         for contract in contract_list:
-            # 一次拉8000根日线（约30年，绰绰有余）
-            klines = api.get_kline_serial(
-                contract,
-                duration_seconds=86400,  # 日线
-                data_length=8000
-            )
-            all_klines[contract] = klines
+            try:
+                # 一次拉8000根日线（约30年，绰绰有余）
+                klines = api.get_kline_serial(
+                    contract,
+                    duration_seconds=86400,  # 日线
+                    data_length=8000
+                )
+                all_klines[contract] = klines
+            except Exception as e:
+                # 单个合约不存在不影响整批
+                logger.warning(f"  {contract} 不可用（已摘牌或不存在），跳过: {e}")
+
+        if not all_klines:
+            logger.error("没有任何可用合约，回填终止")
+            api.close()
+            return
+
+        logger.info(f"  成功注册 {len(all_klines)} 个合约")
 
         # ===== 第5步：统一 wait_update() 等所有数据到位 =====
         logger.info("⏳ 等待数据返回（可能需要10-30秒）...")
         # 循环等待直到所有合约数据就绪
+        import time
         max_wait_seconds = 120
         wait_interval = 5
         waited = 0
         while waited < max_wait_seconds:
-            api.wait_update()
+            try:
+                api.wait_update(deadline=time.time() + wait_interval)
+            except Exception as e:
+                # 网络超时等异常，记录但继续等待下一轮
+                logger.warning(f"  wait_update 异常: {e}，继续等待...")
             
             # 检查所有合约是否数据就绪
             all_ready = True
@@ -231,16 +247,28 @@ def auto_backfill_on_startup(db: Session):
     all_klines = {}
 
     try:
-        # 批量注册
+        # 批量注册（跳过不可用合约）
         for contract in contract_list:
-            klines = api.get_kline_serial(contract, duration_seconds=86400, data_length=8000)
-            all_klines[contract] = klines
+            try:
+                klines = api.get_kline_serial(contract, duration_seconds=86400, data_length=8000)
+                all_klines[contract] = klines
+            except Exception as e:
+                logger.warning(f"  {contract} 不可用，跳过: {e}")
 
-        # 统一等待
+        if not all_klines:
+            logger.error("没有任何可用合约，回填终止")
+            api.close()
+            return
+
+        # 统一等待（带 deadline 和异常处理）
+        import time
         max_wait_seconds = 120
         waited = 0
         while waited < max_wait_seconds:
-            api.wait_update()
+            try:
+                api.wait_update(deadline=time.time() + 5)
+            except Exception as e:
+                logger.warning(f"  wait_update 异常: {e}，继续等待...")
             all_ready = True
             for contract, klines in all_klines.items():
                 if not api.is_serial_ready(klines):
