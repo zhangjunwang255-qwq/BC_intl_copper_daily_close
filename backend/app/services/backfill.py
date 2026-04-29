@@ -126,7 +126,7 @@ def run_backfill_task(db: Session):
                         trade_date = dt.date()
                     else:
                         # 可能是字符串 "2026-01-15 00:00:00"
-                        trade_date = date.fromisoformat(str(dt).date() if isinstance(dt, str) else None
+                        trade_date = date.fromisoformat(str(dt)).date() if isinstance(dt, str) else None
                     
                     if trade_date is None:
                         continue
