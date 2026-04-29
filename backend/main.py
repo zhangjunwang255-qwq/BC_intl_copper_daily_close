@@ -25,9 +25,14 @@ async def lifespan(app: FastAPI):
         start_scheduler()
     except Exception as e:
         logging.error(f"定时任务启动失败: {e}")
-    # 启动时自动回填历史数据（异步执行，不阻塞启动）
+    # 启动时自动回填历史数据（用线程池执行，不阻塞 FastAPI 启动）
     import asyncio
-    async def safe_backfill():
+    from concurrent.futures import ThreadPoolExecutor
+    
+    loop = asyncio.get_event_loop()
+    executor = ThreadPoolExecutor(max_workers=1)
+    
+    def run_backfill():
         db = SessionLocal()
         try:
             auto_backfill_on_startup(db)
@@ -35,7 +40,8 @@ async def lifespan(app: FastAPI):
             logging.error(f"自动回填失败: {e}")
         finally:
             db.close()
-    asyncio.create_task(safe_backfill())
+    
+    loop.run_in_executor(executor, run_backfill)
     yield
     # 关闭时停止定时任务
     try:
