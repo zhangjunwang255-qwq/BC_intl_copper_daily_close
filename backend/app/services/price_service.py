@@ -86,9 +86,9 @@ def fetch_current_prices() -> Dict[str, float]:
     try:
         # 按需求文档：使用 TqKq() 快期模拟账号
         if TQ_USER and TQ_PASSWORD:
-            api = TqApi(auth=TqAuth(TQ_USER, TQ_PASSWORD))
+            api = TqApi(TqAuth(TQ_USER, TQ_PASSWORD))
         else:
-            api = TqApi(auth=TqKq())
+            api = TqApi(TqKq())
         
         contracts = [cu_main, cu_next, bc_main, bc_next]
         for contract in contracts:

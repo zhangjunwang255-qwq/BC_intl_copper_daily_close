@@ -73,9 +73,9 @@ def run_backfill_task(db: Session):
     TQ_PASSWORD = os.getenv("TQ_PASSWORD", "")
     
     if TQ_USER and TQ_PASSWORD:
-        api = TqApi(auth=TqAuth(TQ_USER, TQ_PASSWORD))
+        api = TqApi(TqAuth(TQ_USER, TQ_PASSWORD))
     else:
-        api = TqApi(auth=TqKq())
+        api = TqApi(TqKq())
 
     try:
         for i, current_date in enumerate(trading_days):
