@@ -16,18 +16,32 @@ from app.services.backfill import auto_backfill_on_startup
 async def lifespan(app: FastAPI):
     """应用生命周期管理"""
     # 启动时创建数据库表
-    Base.metadata.create_all(bind=engine)
-    # 启动定时任务（实时数据每10分钟采集）
-    start_scheduler()
-    # 启动时自动回填历史数据（2026-03-01 至今）
-    db = SessionLocal()
     try:
-        auto_backfill_on_startup(db)
-    finally:
-        db.close()
+        Base.metadata.create_all(bind=engine)
+    except Exception as e:
+        logging.error(f"数据库初始化失败: {e}")
+    # 启动定时任务（实时数据每10分钟采集）
+    try:
+        start_scheduler()
+    except Exception as e:
+        logging.error(f"定时任务启动失败: {e}")
+    # 启动时自动回填历史数据（异步执行，不阻塞启动）
+    import asyncio
+    async def safe_backfill():
+        db = SessionLocal()
+        try:
+            auto_backfill_on_startup(db)
+        except Exception as e:
+            logging.error(f"自动回填失败: {e}")
+        finally:
+            db.close()
+    asyncio.create_task(safe_backfill())
     yield
     # 关闭时停止定时任务
-    stop_scheduler()
+    try:
+        stop_scheduler()
+    except Exception as e:
+        logging.error(f"定时任务停止失败: {e}")
 
 
 app = FastAPI(
