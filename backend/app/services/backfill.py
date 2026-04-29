@@ -2,6 +2,7 @@
 import logging
 import os
 from datetime import date, timedelta
+from typing import Optional
 from tqsdk import TqApi, TqKq, TqAuth
 from sqlalchemy.orm import Session
 from app.models.price import PriceRecord
