@@ -68,12 +68,9 @@ def run_backfill_task(db: Session):
 
     logger.info(f"预计处理 {len(trading_days)} 个交易日")
 
-    # 初始化 API
-    TQ_USER = os.getenv("TQ_USER", "")
-    TQ_PASSWORD = os.getenv("TQ_PASSWORD", "")
-    
+    # TqKq 是交易账号（第一个位置参数），TqAuth 是认证凭证（auth= 关键字参数）
     if TQ_USER and TQ_PASSWORD:
-        api = TqApi(TqAuth(TQ_USER, TQ_PASSWORD))
+        api = TqApi(TqKq(), auth=TqAuth(TQ_USER, TQ_PASSWORD))
     else:
         api = TqApi(TqKq())
 

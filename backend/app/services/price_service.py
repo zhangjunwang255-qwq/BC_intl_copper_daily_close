@@ -84,9 +84,9 @@ def fetch_current_prices() -> Dict[str, float]:
     }
     
     try:
-        # 按需求文档：使用 TqKq() 快期模拟账号
+        # TqKq 是交易账号（第一个位置参数），TqAuth 是认证凭证（auth= 关键字参数）
         if TQ_USER and TQ_PASSWORD:
-            api = TqApi(TqAuth(TQ_USER, TQ_PASSWORD))
+            api = TqApi(TqKq(), auth=TqAuth(TQ_USER, TQ_PASSWORD))
         else:
             api = TqApi(TqKq())
         
