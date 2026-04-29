@@ -1,9 +1,9 @@
 """核心业务逻辑服务"""
 import os
 import logging
-from datetime import datetime, date
+from datetime import datetime, date, timedelta
 from typing import Optional, Dict, List, Tuple
-from tqsdk import TqApi
+from tqsdk import TqApi, TqKq, TqAuth
 from sqlalchemy.orm import Session
 
 from app.models.price import PriceRecord, LatestPrice
@@ -15,60 +15,55 @@ TQ_USER = os.getenv("TQ_USER", "")
 TQ_PASSWORD = os.getenv("TQ_PASSWORD", "")
 
 
+def _add_months(base_date: date, months: int) -> date:
+    """日期加N个月，返回对应月的任意一天（只关心年月）"""
+    month = base_date.month - 1 + months
+    year = base_date.year + month // 12
+    month = month % 12 + 1
+    return date(year, month, 1)
+
+
 def get_current_contracts(day: date = None) -> Tuple[str, str, str, str]:
     """
-    根据日期获取当前应选取的合约代码
-    
-    Returns: (cu_main, cu_next, bc_main, bc_next)
+    根据日期获取当前应选取的合约代码（带交易所前缀）
+    规则：日>15 → M+2/M+3；日≤15 → M+1/M+2
+    返回: (cu_main, cu_next, bc_main, bc_next)
     """
     if day is None:
         day = date.today()
     
-    year = day.year
-    month = day.month
-    
-    # 判断是否 > 15 日
     if day.day > 15:
-        # 选取 M+2, M+3
-        m2 = year * 100 + month + 2
-        if month + 2 > 12:
-            m2 = (year + 1) * 100 + (month + 2 - 12)
-        m3 = year * 100 + month + 3
-        if month + 3 > 12:
-            m3 = (year + 1) * 100 + (month + 3 - 12)
-        
-        cu_main = f"CU{m2}"
-        cu_next = f"CU{m3}"
-        bc_main = f"BC{m2}"
-        bc_next = f"BC{m3}"
+        # M+2, M+3
+        d2 = _add_months(day, 2)
+        d3 = _add_months(day, 3)
+        cu_main = f"SHFE.CU{d2.strftime('%y%m')}"
+        cu_next = f"SHFE.CU{d3.strftime('%y%m')}"
+        bc_main = f"INE.BC{d2.strftime('%y%m')}"
+        bc_next = f"INE.BC{d3.strftime('%y%m')}"
     else:
-        # 选取 M+1, M+2
-        m1 = year * 100 + month + 1
-        if month + 1 > 12:
-            m1 = (year + 1) * 100 + (month + 1 - 12)
-        m2 = year * 100 + month + 2
-        if month + 2 > 12:
-            m2 = (year + 1) * 100 + (month + 2 - 12)
-        
-        cu_main = f"CU{m1}"
-        cu_next = f"CU{m2}"
-        bc_main = f"BC{m1}"
-        bc_next = f"BC{m2}"
+        # M+1, M+2
+        d1 = _add_months(day, 1)
+        d2 = _add_months(day, 2)
+        cu_main = f"SHFE.CU{d1.strftime('%y%m')}"
+        cu_next = f"SHFE.CU{d2.strftime('%y%m')}"
+        bc_main = f"INE.BC{d1.strftime('%y%m')}"
+        bc_next = f"INE.BC{d2.strftime('%y%m')}"
     
     return cu_main, cu_next, bc_main, bc_next
 
 
 def get_contract_price(api: TqApi, contract_code: str) -> Optional[float]:
-    """获取合约最新价格"""
+    """获取合约最新价格，等待数据到达"""
     try:
         quote = api.get_quote(contract_code)
-        # 关键：必须等待数据到达，否则 last_price 为 None
-        api.wait_update()
+        # 等待该合约数据更新（关键：必须指定 quote 对象）
+        api.wait_update(quote)
         
         price = quote.last_price
         if price is None or (isinstance(price, float) and price != price):  # NaN check
             # 尝试备用字段
-            price = getattr(quote, 'close', None) or getattr(quote, 'pre_close', None)
+            api.wait_update(quote)  # 再等一次
+            price = quote.close if quote.close else quote.pre_close
         
         return float(price) if price is not None else None
     except Exception as e:
@@ -89,8 +84,11 @@ def fetch_current_prices() -> Dict[str, float]:
     }
     
     try:
-        auth = (TQ_USER, TQ_PASSWORD) if TQ_USER else None
-        api = TqApi(auth=auth)
+        # 按需求文档：使用 TqKq() 快期模拟账号
+        if TQ_USER and TQ_PASSWORD:
+            api = TqApi(TqAuth(TQ_USER, TQ_PASSWORD))
+        else:
+            api = TqApi(TqKq())
         
         contracts = [cu_main, cu_next, bc_main, bc_next]
         for contract in contracts:
