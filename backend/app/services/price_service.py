@@ -56,16 +56,15 @@ def get_contract_price(api: TqApi, contract_code: str) -> Optional[float]:
     """获取合约最新价格，等待数据到达"""
     try:
         quote = api.get_quote(contract_code)
-        # 等待该合约数据更新（关键：必须指定 quote 对象）
-        api.wait_update(quote)
+        # 不传参数，等所有数据更新一次
+        api.wait_update()
         
         price = quote.last_price
-        if price is None or (isinstance(price, float) and price != price):  # NaN check
-            # 尝试备用字段
-            api.wait_update(quote)  # 再等一次
-            price = quote.close if quote.close else quote.pre_close
+        # NaN 或 None 时认为数据未到
+        if price is None or (isinstance(price, float) and price != price):
+            return None
         
-        return float(price) if price is not None else None
+        return float(price)
     except Exception as e:
         logger.warning(f"获取 {contract_code} 价格失败: {e}")
         return None
@@ -84,17 +83,24 @@ def fetch_current_prices() -> Dict[str, float]:
     }
     
     try:
-        # 直接用 auth=TqAuth，不传 account 参数（TqSdk 自动用模拟账号）
         if TQ_USER and TQ_PASSWORD:
             api = TqApi(auth=TqAuth(TQ_USER, TQ_PASSWORD))
         else:
-            api = TqApi()  # 无账号时用默认模拟账号
+            api = TqApi()
         
         contracts = [cu_main, cu_next, bc_main, bc_next]
-        for contract in contracts:
-            price = get_contract_price(api, contract)
-            if price:
-                result["prices"][contract] = price
+        quotes = {c: api.get_quote(c) for c in contracts}
+        
+        # 关键：先获取所有 quote，再统一 wait_update，等数据到达
+        api.wait_update()
+        
+        for contract, quote in quotes.items():
+            price = quote.last_price
+            if price is not None and not (isinstance(price, float) and price != price):
+                result["prices"][contract] = float(price)
+                logger.info(f"{contract} = {price}")
+            else:
+                logger.warning(f"{contract} 数据未到: last_price={price}")
         
         api.close()
     except Exception as e:

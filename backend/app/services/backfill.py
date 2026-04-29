@@ -143,9 +143,9 @@ def auto_backfill_on_startup(db: Session):
         TQ_PASSWORD = os.getenv("TQ_PASSWORD", "")
 
         if TQ_USER and TQ_PASSWORD:
-            api = TqApi(TqAuth(TQ_USER, TQ_PASSWORD))
+            api = TqApi(auth=TqAuth(TQ_USER, TQ_PASSWORD))
         else:
-            api = TqApi(TqKq())
+            api = TqApi()
 
         try:
             for i, current_date in enumerate(days_to_fill):
