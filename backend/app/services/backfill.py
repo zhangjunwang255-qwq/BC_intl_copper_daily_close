@@ -3,7 +3,7 @@ import logging
 import os
 from datetime import date, timedelta
 from typing import Optional
-from tqsdk import TqApi, TqKq, TqAuth
+from tqsdk import TqApi, TqAuth
 from sqlalchemy.orm import Session
 from app.models.price import PriceRecord
 from app.services.price_service import get_current_contracts
@@ -68,11 +68,11 @@ def run_backfill_task(db: Session):
 
     logger.info(f"预计处理 {len(trading_days)} 个交易日")
 
-    # TqKq 是交易账号（第一个位置参数），TqAuth 是认证凭证（auth= 关键字参数）
+    # 直接用 auth=TqAuth，不传 account 参数（TqSdk 自动用模拟账号）
     if TQ_USER and TQ_PASSWORD:
-        api = TqApi(TqKq(), auth=TqAuth(TQ_USER, TQ_PASSWORD))
+        api = TqApi(auth=TqAuth(TQ_USER, TQ_PASSWORD))
     else:
-        api = TqApi(TqKq())
+        api = TqApi()  # 无账号时用默认模拟账号
 
     try:
         for i, current_date in enumerate(trading_days):

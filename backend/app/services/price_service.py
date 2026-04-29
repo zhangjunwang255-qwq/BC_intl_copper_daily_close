@@ -3,7 +3,7 @@ import os
 import logging
 from datetime import datetime, date, timedelta
 from typing import Optional, Dict, List, Tuple
-from tqsdk import TqApi, TqKq, TqAuth
+from tqsdk import TqApi, TqAuth
 from sqlalchemy.orm import Session
 
 from app.models.price import PriceRecord, LatestPrice
@@ -84,11 +84,11 @@ def fetch_current_prices() -> Dict[str, float]:
     }
     
     try:
-        # TqKq 是交易账号（第一个位置参数），TqAuth 是认证凭证（auth= 关键字参数）
+        # 直接用 auth=TqAuth，不传 account 参数（TqSdk 自动用模拟账号）
         if TQ_USER and TQ_PASSWORD:
-            api = TqApi(TqKq(), auth=TqAuth(TQ_USER, TQ_PASSWORD))
+            api = TqApi(auth=TqAuth(TQ_USER, TQ_PASSWORD))
         else:
-            api = TqApi(TqKq())
+            api = TqApi()  # 无账号时用默认模拟账号
         
         contracts = [cu_main, cu_next, bc_main, bc_next]
         for contract in contracts:
